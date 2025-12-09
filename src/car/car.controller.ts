@@ -20,6 +20,7 @@ import { RegisterCarDto } from './dto/register-car.dto';
 import { UpdateCarDistanceDto } from './dto/update-car-distance.dto';
 import { UpdateCarAllDto } from './dto/update-car-all.dto';
 import { AuthenticateService } from '../authenticate/authenticate.service';
+import { Request } from 'express';
 
 /**
  * Controller exposing the car management API.  Every endpoint requires
@@ -54,8 +55,8 @@ export class CarController {
     FileInterceptor('file', {
       storage: diskStorage({
         destination: (_req, _file, cb) => {
-          // Store uploaded files in the top‑level uploads directory (not in dist)
-          cb(null, join(__dirname, '..', '..', 'uploads'));
+          // 프로젝트 루트/uploads 에 저장
+          cb(null, join(process.cwd(), 'uploads'));
         },
         filename: (_req, file, cb) => {
           const unique = uuidv4().replace(/-/g, '');
@@ -67,12 +68,22 @@ export class CarController {
   )
   async register(
     @UploadedFile() file: Express.Multer.File | undefined,
-    @Body() dto: RegisterCarDto,
+    @Body() body: any,
     @Headers('authorization') authorization: string,
   ) {
     this.verifyToken(authorization);
+
+    // 👉 Talend가 보낸 form-data에서 직접 꺼내기
+    const { carNm, carNo } = body;
+
+    if (!carNm || !carNo) {
+      throw new Error('carNm, carNo가 전송되지 않았습니다.');
+    }
+
     const imageUrl = file ? `/uploads/${file.filename}` : undefined;
-    const car = this.carService.register(dto, imageUrl);
+
+    const car = this.carService.register({ carNm, carNo }, imageUrl);
+
     return {
       STATUS_CD: 'S0000',
       STATUS_MSG: 'SUCCESS',
